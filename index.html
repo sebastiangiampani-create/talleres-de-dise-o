@@ -10,9 +10,11 @@
     * { box-sizing:border-box }
     body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Ubuntu, Arial, sans-serif; margin: 24px; display:grid; place-items:start center; background:#f9fafb; }
     main { width: 100%; max-width: 1100px; }
+
     header { display:flex; align-items:center; gap:16px; margin-bottom:16px; }
     header img.logo { height:128px; }
     h1 { margin:0 auto; font-size: clamp(22px, 3vw, 28px); color: var(--brand); text-align:center; }
+
     p.hint { margin: 0 0 16px; color: #555; }
     .card { background:#fff; border:1px solid #eee; border-radius:16px; padding:16px; box-shadow:0 1px 10px rgba(0,0,0,.04); }
 
@@ -34,13 +36,11 @@
 
     footer { margin-top: 24px; color:#666; font-size:14px; text-align:center; }
 
-    /* promo en el footer */
-    .promo { display:block; padding:16px; margin:16px auto; max-width:900px; }
-    .promo-main { display:grid; grid-template-columns: auto 1fr; gap:14px; align-items:center; text-decoration:none; color:inherit; }
-    .promo-logo { height:56px; width:auto; }
-    .promo-texts { display:grid; gap:6px; text-align:left; }
-    .promo-line { margin:0; color:#0f172a; }
-    .promo-link { color:var(--brand); text-decoration:none; }
+    /* Promo en el footer: logo centrado y textos-link azules */
+    .promo { display:block; padding:16px; margin:16px auto; max-width:900px; text-align:center; }
+    .promo-logo { height:56px; width:auto; margin:0 auto 12px; display:block; }
+    .promo-texts { display:grid; gap:8px; }
+    .promo-link { color:var(--brand); text-decoration:none; font-weight:500; }
     .promo-link:hover { text-decoration:underline; }
 
     /* === estilos del popup === */
@@ -64,8 +64,7 @@
       .toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
       .toolbar input, .toolbar button { width: 100%; }
       table th, table td { font-size: 14px; padding: 6px; }
-      .promo-main { grid-template-columns: 1fr; text-align:center; }
-      .promo-logo { margin: 0 auto; }
+      .promo-logo { height:48px; }
     }
   </style>
 </head>
@@ -111,19 +110,19 @@
   <!-- Footer con promo -->
   <footer>
     <div class="promo card">
-      <a class="promo-main" href="https://escuelademaestros.bue.edu.ar/capsula-secundaria-aprende/" target="_blank" rel="noopener noreferrer">
-        <img src="logo_secundaria_aprende.png" alt="Secundaria Aprende" class="promo-logo">
-        <div class="promo-texts">
-          <p class="promo-line">
-            Accede a la cápsula que te permitirá profundizar en los principales ejes que conforman <strong>Secundaria Aprende</strong>
-          </p>
-          <a class="promo-link"
-             href="https://buenosaires.gob.ar/educacion/buenos-aires-aprende/documentos-para-docentes-secundaria-aprende"
-             target="_blank" rel="noopener noreferrer">
-            Accede a todo el material de trabajo y documentos para implementar <strong>Secundaria Aprende</strong> en tu escuela.
-          </a>
-        </div>
-      </a>
+      <img src="logo_secundaria_aprende.png" alt="Secundaria Aprende" class="promo-logo">
+      <div class="promo-texts">
+        <a class="promo-link"
+           href="https://escuelademaestros.bue.edu.ar/capsula-secundaria-aprende/"
+           target="_blank" rel="noopener noreferrer">
+          Accede a la cápsula que te permitirá profundizar en los principales ejes que conforman <strong>Secundaria Aprende</strong>
+        </a>
+        <a class="promo-link"
+           href="https://buenosaires.gob.ar/educacion/buenos-aires-aprende/documentos-para-docentes-secundaria-aprende"
+           target="_blank" rel="noopener noreferrer">
+          Accede a todo el material de trabajo y documentos para implementar <strong>Secundaria Aprende</strong> en tu escuela.
+        </a>
+      </div>
     </div>
     <p>Fuente: Google Sheets (a través de Web App). Actualizá la planilla y recargá esta página para ver cambios.</p>
   </footer>
@@ -169,7 +168,7 @@ window.addEventListener("load", () => {
   }
 });
 
-// ====== buscador con caché ======
+// ====== PERFORMANCE: caché + pre-índices + DOM eficiente ======
 const CACHE_KEY = "buscador_rows_cache_v1";
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 min
 let ALL_ROWS = [];
@@ -182,6 +181,7 @@ function showError(msg){
 function hideError(){ document.getElementById('err').style.display='none'; }
 function uniqueSorted(arr){ return [...new Set(arr.filter(Boolean))].sort((a,b)=>a.localeCompare(b)); }
 
+// Rellena <select> con DocumentFragment y placeholder
 function fillSelect(el, items, any=false, placeholderText=""){
   const frag = document.createDocumentFragment();
   el.innerHTML = "";
@@ -210,6 +210,7 @@ function docentesFor(esc){
   return uniqueSorted(Array.from(set));
 }
 
+// Debounce para el buscador
 function debounce(fn, ms){ let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), ms); }; }
 
 function renderTable(rows){
@@ -217,6 +218,7 @@ function renderTable(rows){
   const frag = document.createDocumentFragment();
   tb.innerHTML = "";
   for(const r of rows){
+    // Dirección: link a Google Maps si NO dice "a confirmar"
     const dir = (r.Direccion||"").trim();
     const isConfirmar = dir.toLowerCase().includes("confirmar");
     const dirHtml = (!dir || isConfirmar)
@@ -246,6 +248,7 @@ function currentFiltered(){
   );
 }
 
+// Cache helpers
 function loadCache(){
   try{
     const raw = localStorage.getItem(CACHE_KEY);
@@ -268,7 +271,9 @@ function applyData(rows){
   const selDoc = document.getElementById('docente');
 
   const escuelas = uniqueSorted(ALL_ROWS.map(r => r.Escuela));
+  // placeholder: "(Seleccione escuela)"
   fillSelect(selEsc, escuelas, false, "(Seleccione escuela)");
+  // docente arranca vacío con (Cualquiera)
   fillSelect(selDoc, [], true);
 
   function refresh(){ renderTable(currentFiltered()); }
@@ -281,22 +286,27 @@ function applyData(rows){
   selEsc.onchange = onEscChange;
   selDoc.onchange = refresh;
   document.getElementById('q').addEventListener('input', debounce(refresh, 200));
-  document.getElementById('limpiar').onclick = ()=>{
+  document.getElementById('limpiar').addEventListener('click', ()=>{
+    // reset: vuelve al placeholder de escuela
     fillSelect(selEsc, escuelas, false, "(Seleccione escuela)");
     selEsc.selectedIndex = 0;
     onEscChange();
     selDoc.selectedIndex = 0;
     document.getElementById('q').value='';
     refresh();
-  };
+  });
 
+  // estado inicial: placeholder activo, tabla vacía
   renderTable([]);
 }
 
+// Fetch con estrategia cache-first
 (async function init(){
+  // 1) cache primero para UI instantánea
   const cached = loadCache();
   if(cached){ hideError(); applyData(cached); }
 
+  // 2) traer fresco y actualizar si cambia
   try{
     const res = await fetch(API_URL, { cache:'no-store' });
     if(!res.ok) throw new Error('API no disponible');
