@@ -20,20 +20,19 @@
     select,input[type="search"] { padding:10px; border:1px solid #ddd; border-radius:10px; width:100%; }
     .toolbar { display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap; }
     button { padding: 10px 14px; border:1px solid var(--brand); background:var(--brand); color:#fff; border-radius:10px; cursor:pointer; }
-    button[disabled] { opacity:.6; cursor:not-allowed; }
     button:hover { background:var(--brand-600) }
+
+    /* Tabla y contenedor */
     .table-container { width: 100%; overflow-x: auto; }
-    table { width:100%; border-collapse:collapse; margin-top:12px; min-width: 760px; }
+    table { width:100%; border-collapse:collapse; margin-top:12px; min-width: 640px; }
     th,td { border:1px solid #eee; padding:10px; text-align:left; vertical-align:top; }
-    th { background:#fafafa; font-weight:700; white-space:nowrap; }
-    td.actions { white-space:nowrap; }
-    .rowbtn { padding:6px 10px; border-radius:8px; border:1px solid var(--brand); background:#fff; color:var(--brand); cursor:pointer; }
-    .rowbtn:hover { background:#eef; }
+    th { background:#fafafa; font-weight:700; }
+
     .badge { display:inline-block; padding:4px 8px; background:#eef; border:1px solid #dde; border-radius:999px; font-size:12px; }
     .error { color:#b00020; background:#ffebee; border:1px solid #ffcdd2; padding:10px; border-radius:12px; margin:10px 0; }
     footer { margin-top: 24px; color:#666; font-size:14px; }
 
-    /* Popup */
+    /* === estilos del popup === */
     .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.45); display:none; place-items:center; padding: 20px; z-index: 50; }
     .modal { background:#fff; border-radius:16px; max-width: 720px; width: 100%; border:1px solid #e5e7eb; box-shadow: 0 10px 30px rgba(0,0,0,.2); }
     .modal header { display:flex; align-items:center; gap:10px; padding:16px 18px; border-bottom:1px solid #eee; margin:0; }
@@ -44,18 +43,20 @@
     .btn.primary { background: var(--brand); color:#fff; border-color: var(--brand); }
     .btn:hover { filter: brightness(0.98); }
 
-    /* Mobile */
+    /* ====== Ajustes MOBILE ====== */
     @media (max-width: 600px) {
       body { margin: 12px; }
       header img.logo { height: 72px; }
       h1 { font-size: 20px; }
-      select, input[type="search"], button { font-size: 16px; }
+      select, input[type="search"], button { font-size: 16px; } /* evita zoom iOS */
       .grid { grid-template-columns: 1fr; }
       .toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
       .toolbar input, .toolbar button { width: 100%; }
       table th, table td { font-size: 14px; padding: 6px; }
     }
-    @media (max-width: 480px) { .modal { margin: 0 10px; } }
+    @media (max-width: 480px) {
+      .modal { margin: 0 10px; }
+    }
   </style>
 </head>
 <body>
@@ -81,8 +82,6 @@
       <input id="q" type="search" placeholder="Buscar en resultados (sede, comisión, dirección...)" />
       <button id="limpiar">Limpiar filtros</button>
       <span id="count" class="badge">0 resultados</span>
-      <span style="flex:1 1 auto"></span>
-      <button id="btnIcs" disabled>Agregar seleccionados a Calendario (.ics)</button>
     </div>
     <div id="err" class="error" style="display:none"></div>
 
@@ -90,8 +89,7 @@
       <table id="tabla" aria-live="polite">
         <thead>
           <tr>
-            <th></th>
-            <th>Docente</th><th>Día</th><th>Horario</th><th>Comisión</th><th>Sede</th><th>Dirección</th><th>Calendario</th>
+            <th>Docente</th><th>Día</th><th>Horario</th><th>Comisión</th><th>Sede</th><th>Dirección</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -99,10 +97,10 @@
     </div>
   </section>
 
-  <footer>Fuente: Google Sheets (a través de Web App o CSV). Actualizá la planilla y recargá.</footer>
+  <footer>Fuente: Google Sheets (a través de Web App). Actualizá la planilla y recargá esta página para ver cambios.</footer>
 </main>
 
-<!-- Popup -->
+<!-- === popup modal === -->
 <div id="popup" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="pop-title">
   <div class="modal">
     <header><h3 id="pop-title">Aviso</h3></header>
@@ -115,11 +113,10 @@
 </div>
 
 <script>
-// ========= CONFIG (API + CSV fallback) =========
-const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzuDVCz7yGO86EbIWTXiFkZLuEBKo05IqvC-77P_omJrmEV4AuhSAkM0l39xXM3u_F4tg/exec";
-const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRZjguLNogCNXYbZOIzTPZ9acEW_BMjtr3aept06PPTIPOvSygEh_tcyHuYi9KM6ZftIgLRaw1Aod76/pub?gid=0&single=true&output=csv";
+// ====== CONFIG ======
+const API_URL = "https://script.google.com/macros/s/AKfycbzuDVCz7yGO86EbIWTXiFkZLuEBKo05IqvC-77P_omJrmEV4AuhSAkM0l39xXM3u_F4tg/exec";
 
-// ========= Popup bienvenida =========
+// === bienvenida al abrir ===
 const WELCOME_ID = "popup_welcome_dismissed_v1";
 const WELCOME_TEXT = `Seleccione su escuela y luego docentes de qué área quiere consultar y podrá visualizar en qué fecha, hora y lugar están convocados para los talleres de diseño.
 
@@ -138,28 +135,32 @@ function openPopup(message, dismissKey){
   };
 }
 window.addEventListener("load", () => {
-  if (!localStorage.getItem(WELCOME_ID)) openPopup(WELCOME_TEXT, WELCOME_ID);
+  if (!localStorage.getItem(WELCOME_ID)) {
+    openPopup(WELCOME_TEXT, WELCOME_ID);
+  }
 });
 
-// ========= Rendimiento / estado =========
+// ====== PERFORMANCE: caché + pre-índices + DOM eficiente ======
 const CACHE_KEY = "buscador_rows_cache_v1";
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 min
 let ALL_ROWS = [];
 let docentesByEscuela = new Map();
-const SELECTED = new Set();
 
-function showError(msg){ const el=document.getElementById('err'); el.textContent=msg; el.style.display='block'; }
+function showError(msg){
+  const el = document.getElementById('err');
+  el.textContent = msg; el.style.display = 'block';
+}
 function hideError(){ document.getElementById('err').style.display='none'; }
 function uniqueSorted(arr){ return [...new Set(arr.filter(Boolean))].sort((a,b)=>a.localeCompare(b)); }
-function debounce(fn, ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), ms); }; }
 
-// Select helpers
+// Rellena <select> con DocumentFragment (rápido) y placeholder si corresponde
 function fillSelect(el, items, any=false, placeholderText=""){
   const frag = document.createDocumentFragment();
   el.innerHTML = "";
   if (placeholderText){
     const p = document.createElement('option');
-    p.value = ""; p.textContent = placeholderText; p.disabled = true; p.selected = true;
+    p.value = ""; p.textContent = placeholderText;
+    p.disabled = true; p.selected = true;
     frag.appendChild(p);
   }
   if(any){ const o=document.createElement('option'); o.value=""; o.textContent="(Cualquiera)"; frag.appendChild(o); }
@@ -167,7 +168,6 @@ function fillSelect(el, items, any=false, placeholderText=""){
   el.appendChild(frag);
 }
 
-// Index
 function buildIndexes(){
   docentesByEscuela.clear();
   for (const r of ALL_ROWS){
@@ -179,175 +179,121 @@ function buildIndexes(){
 function docentesFor(esc){
   if(!esc) return uniqueSorted(ALL_ROWS.map(r => r.Docente));
   const set = docentesByEscuela.get(esc) || new Set();
-  return uniqueSorted([...set]);
+  return uniqueSorted(Array.from(set));
 }
 
-// ---------- Calendario helpers ----------
-const TZID = "America/Argentina/Buenos_Aires";
-function pad2(n){ return String(n).padStart(2,'0'); }
-function toCalDateTime(dt){
-  return `${dt.getFullYear()}${pad2(dt.getMonth()+1)}${pad2(dt.getDate())}T${pad2(dt.getHours())}${pad2(dt.getMinutes())}${pad2(dt.getSeconds())}`;
-}
-function parseDateTime(diaStr, horaStr){
-  const now = new Date(); const yearDefault = now.getFullYear();
-  let d = (diaStr||"").toString().toLowerCase().replace(/[a-záéíóúñ]+/g, '').trim();
-  const m = d.match(/(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?/); if(!m) return null;
-  let dd=+m[1], mm=+m[2], yyyy=m[3]? +m[3] : yearDefault; if(yyyy<100) yyyy+=2000;
-  let h=(horaStr||"").toLowerCase().replace(/–|—/g,'-').replace(/\sa\s/g,'-').trim();
-  let hh1=9, mm1=0, hh2=null, mm2=null;
-  const hm = h.match(/(\d{1,2})[:.](\d{2})(?:\D+(\d{1,2})[:.](\d{2}))?/);
-  if(hm){ hh1=+hm[1]; mm1=+hm[2]; if(hm[3]){ hh2=+hm[3]; mm2=+hm[4]; } }
-  const start=new Date(yyyy,mm-1,dd,hh1,mm1,0);
-  const end=new Date(yyyy,mm-1,dd,(hh2??(hh1+1)),(mm2??mm1),0);
-  return {start,end};
-}
-function gcalLink(r){
-  const dt=parseDateTime(r.Dia,r.Horario); if(!dt) return null;
-  const dates=`${toCalDateTime(dt.start)}/${toCalDateTime(dt.end)}`;
-  const text=encodeURIComponent(`${r.Docente||'Actividad'} — ${r.Comision||''}`.trim());
-  const details=encodeURIComponent(`Escuela: ${r.Escuela||''}\nSede: ${r.Sede||''}\nComisión: ${r.Comision||''}`);
-  const loc=[]; if(r.Sede) loc.push(r.Sede); if(r.Direccion) loc.push(r.Direccion);
-  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${text}&dates=${dates}&location=${encodeURIComponent(loc.join(' - '))}&details=${details}`;
-}
-function icsForRows(rows){
-  const L=["BEGIN:VCALENDAR","VERSION:2.0","CALSCALE:GREGORIAN","PRODID:-//Guido Spano//Buscador Horarios//ES"];
-  for(const r of rows){
-    const dt=parseDateTime(r.Dia,r.Horario); if(!dt) continue;
-    const uid=`gs-${Date.now()}-${Math.random().toString(36).slice(2)}@guidospano`;
-    const summary=(r.Docente?`${r.Docente} — `:"")+(r.Comision||"Actividad");
-    const loc=[]; if(r.Sede) loc.push(r.Sede); if(r.Direccion) loc.push(r.Direccion);
-    const desc=`Escuela: ${r.Escuela||''}\nComisión: ${r.Comision||''}\nSede: ${r.Sede||''}\nDirección: ${r.Direccion||''}`;
-    L.push("BEGIN:VEVENT",
-      `UID:${uid}`,
-      `SUMMARY:${summary.replace(/\r?\n/g,' ')}`,
-      `DTSTART;TZID=${TZID}:${toCalDateTime(dt.start)}`,
-      `DTEND;TZID=${TZID}:${toCalDateTime(dt.end)}`,
-      `LOCATION:${loc.join(' - ').replace(/\r?\n/g,' ')}`,
-      `DESCRIPTION:${desc.replace(/\r?\n/g,'\\n')}`,
-      "END:VEVENT");
-  }
-  L.push("END:VCALENDAR"); return L.join("\r\n");
-}
-function download(filename, text){
-  const blob=new Blob([text],{type:"text/calendar;charset=utf-8"});
-  const url=URL.createObjectURL(blob); const a=document.createElement('a');
-  a.href=url; a.download=filename; document.body.appendChild(a); a.click();
-  setTimeout(()=>{URL.revokeObjectURL(url); a.remove();},0);
-}
+// Debounce para el buscador
+function debounce(fn, ms){ let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), ms); }; }
 
-// ---------- Render ----------
 function renderTable(rows){
-  const tb=document.querySelector('#tabla tbody'); const frag=document.createDocumentFragment();
-  tb.innerHTML="";
+  const tb = document.querySelector('#tabla tbody');
+  const frag = document.createDocumentFragment();
+  tb.innerHTML = "";
   for(const r of rows){
-    const dir=(r.Direccion||"").trim(); const isConf=dir.toLowerCase().includes("confirmar");
-    const dirHtml=(!dir||isConf)?(dir||""):`<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(dir)}" target="_blank" rel="noopener noreferrer">${dir}</a>`;
-    const addLink=gcalLink(r);
-    const addBtn=addLink?`<a class="rowbtn" href="${addLink}" target="_blank" rel="noopener noreferrer">Añadir</a>`:`<button class="rowbtn" disabled>Sin fecha/hora</button>`;
-    const checked=SELECTED.has(r._idx)?"checked":"";
+    // Dirección: link a Google Maps si NO dice "a confirmar"
+    const dir = (r.Direccion||"").trim();
+    const isConfirmar = dir.toLowerCase().includes("confirmar");
+    const dirHtml = (!dir || isConfirmar)
+      ? (dir || "")
+      : `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(dir)}" target="_blank" rel="noopener noreferrer">${dir}</a>`;
     const tr=document.createElement('tr');
-    tr.innerHTML=`
-      <td><input type="checkbox" data-idx="${r._idx}" ${checked}></td>
-      <td>${r.Docente||''}</td>
-      <td>${r.Dia||''}</td>
-      <td>${r.Horario||''}</td>
-      <td>${r.Comision||''}</td>
-      <td>${r.Sede||''}</td>
-      <td>${dirHtml}</td>
-      <td class="actions">${addBtn}</td>`;
+    tr.innerHTML = `<td>${r.Docente||''}</td>
+                    <td>${r.Dia||''}</td>
+                    <td>${r.Horario||''}</td>
+                    <td>${r.Comision||''}</td>
+                    <td>${r.Sede||''}</td>
+                    <td>${dirHtml}</td>`;
     frag.appendChild(tr);
   }
   tb.appendChild(frag);
   document.getElementById('count').textContent = rows.length + (rows.length===1?' resultado':' resultados');
-  tb.querySelectorAll('input[type="checkbox"][data-idx]').forEach(chk=>{
-    chk.onchange=e=>{ const id=parseInt(e.target.getAttribute('data-idx'),10);
-      if(e.target.checked) SELECTED.add(id); else SELECTED.delete(id); updateIcsButton(); };
-  });
 }
-function updateIcsButton(){
-  const btn=document.getElementById('btnIcs'); const n=SELECTED.size;
-  btn.disabled=(n===0);
-  btn.textContent = n===0 ? "Agregar seleccionados a Calendario (.ics)" : `Agregar ${n} seleccionados a Calendario (.ics)`;
-}
+
 function currentFiltered(){
-  const selEsc=document.getElementById('escuela').value;
-  const selDoc=document.getElementById('docente').value;
-  const q=document.getElementById('q').value.toLowerCase();
-  return ALL_ROWS.map((r,i)=>({...r,_idx:i})).filter(r =>
-    (!selEsc || r.Escuela===selEsc) && (!selDoc || r.Docente===selDoc) &&
-    (!q || Object.values(r).some(v=>(v||'').toLowerCase().includes(q)))
+  const selEsc = document.getElementById('escuela').value;
+  const selDoc = document.getElementById('docente').value;
+  const q = document.getElementById('q').value.toLowerCase();
+  return ALL_ROWS.filter(r =>
+    (!selEsc || r.Escuela===selEsc) &&
+    (!selDoc || r.Docente===selDoc) &&
+    (!q || Object.values(r).some(v => (v||'').toLowerCase().includes(q)))
   );
 }
 
-// Cache
-function loadCache(){ try{ const raw=localStorage.getItem(CACHE_KEY); if(!raw) return null;
-  const {ts,rows}=JSON.parse(raw); if(!ts||!rows) return null;
-  if(Date.now()-ts > CACHE_TTL_MS) return null; return rows; }catch{return null;} }
-function saveCache(rows){ try{ localStorage.setItem(CACHE_KEY, JSON.stringify({ts:Date.now(), rows})); }catch{} }
-
-function applyData(rows){
-  ALL_ROWS=rows; buildIndexes();
-  const selEsc=document.getElementById('escuela'); const selDoc=document.getElementById('docente');
-  const escuelas=uniqueSorted(ALL_ROWS.map(r=>r.Escuela));
-  fillSelect(selEsc, escuelas, false, "(Seleccione escuela)");
-  fillSelect(selDoc, [], true);
-  function refresh(){ renderTable(currentFiltered()); updateIcsButton(); }
-  function onEscChange(){ fillSelect(selDoc, docentesFor(selEsc.value), true); refresh(); }
-  selEsc.onchange=onEscChange; selDoc.onchange=refresh;
-  document.getElementById('q').addEventListener('input', debounce(refresh, 200));
-  document.getElementById('limpiar').onclick=()=>{ SELECTED.clear();
-    fillSelect(selEsc, escuelas, false, "(Seleccione escuela)"); selEsc.selectedIndex=0; onEscChange();
-    selDoc.selectedIndex=0; document.getElementById('q').value=''; refresh(); };
-  document.getElementById('btnIcs').onclick=()=>{
-    if(SELECTED.size===0) return;
-    const selectedRows = Array.from(SELECTED).map(i => ({...ALL_ROWS[i]}));
-    const ics = icsForRows(selectedRows);
-    if(!ics || !ics.includes("BEGIN:VEVENT")){ alert("No se pudieron generar eventos. Revisá Día y Horario."); return; }
-    download(`talleres_${Date.now()}.ics`, ics);
-  };
-  renderTable([]); updateIcsButton();
+// Cache helpers
+function loadCache(){
+  try{
+    const raw = localStorage.getItem(CACHE_KEY);
+    if(!raw) return null;
+    const {ts, rows} = JSON.parse(raw);
+    if(!ts || !rows) return null;
+    if(Date.now() - ts > CACHE_TTL_MS) return null;
+    return rows;
+  }catch{ return null; }
+}
+function saveCache(rows){
+  try{ localStorage.setItem(CACHE_KEY, JSON.stringify({ts:Date.now(), rows})); }catch{}
 }
 
-// ========= Carga de datos con fallback =========
+function applyData(rows){
+  ALL_ROWS = rows;
+  buildIndexes();
+
+  const selEsc = document.getElementById('escuela');
+  const selDoc = document.getElementById('docente');
+
+  const escuelas = uniqueSorted(ALL_ROWS.map(r => r.Escuela));
+  // placeholder: "(Seleccione escuela)"
+  fillSelect(selEsc, escuelas, false, "(Seleccione escuela)");
+  // docente arranca vacío con (Cualquiera)
+  fillSelect(selDoc, [], true);
+
+  function refresh(){ renderTable(currentFiltered()); }
+  function onEscChange(){
+    const esc = selEsc.value;
+    fillSelect(selDoc, docentesFor(esc), true);
+    refresh();
+  }
+
+  selEsc.onchange = onEscChange;
+  selDoc.onchange = refresh;
+  document.getElementById('q').addEventListener('input', debounce(refresh, 200));
+  document.getElementById('limpiar').onclick = ()=>{
+    // reset: vuelve al placeholder de escuela
+    fillSelect(selEsc, escuelas, false, "(Seleccione escuela)");
+    selEsc.selectedIndex = 0;
+    onEscChange();
+    selDoc.selectedIndex = 0;
+    document.getElementById('q').value='';
+    refresh();
+  };
+
+  // estado inicial: placeholder activo, tabla vacía
+  renderTable([]);
+}
+
+// Fetch con estrategia cache-first
 (async function init(){
-  // 1) cache primero
-  const cached=loadCache(); if(cached){ hideError(); applyData(cached); }
-  // 2) intento Web App
-  let rows=null;
+  // 1) cache primero para UI instantánea
+  const cached = loadCache();
+  if(cached){ hideError(); applyData(cached); }
+
+  // 2) traer fresco y actualizar si cambia
   try{
-    const res=await fetch(WEB_APP_URL, {cache:'no-store'});
-    if(!res.ok) throw new Error("webapp no ok");
-    const data=await res.json();
-    if(!data.ok || !Array.isArray(data.rows)) throw new Error("webapp sin rows");
-    rows=data.rows;
-  }catch(e){
-    console.warn("Fallo Web App, uso CSV", e);
-  }
-  // 3) fallback CSV si web app falló
-  if(!rows){
-    try{
-      rows = await new Promise((resolve, reject)=>{
-        Papa.parse(CSV_URL, {
-          download:true, header:true, skipEmptyLines:true,
-          complete: (res)=> resolve(res.data),
-          error: (err)=> reject(err)
-        });
-      });
-      // Normalizar claves (por si vienen con tildes)
-      rows = rows.map(r => ({
-        Escuela: r.Escuela || r["Escuela"] || "",
-        Docente: r.Docente || r["Docente"] || r["Docentes de "] || "",
-        Dia: r.Día || r.Dia || r["Día"] || "",
-        Horario: r.Horario || "",
-        Comision: r.Comisión || r.Comision || r["Comisión"] || "",
-        Sede: r.Sede || "",
-        Direccion: r.Dirección || r.Direccion || r["Dirección"] || ""
-      }));
-    }catch(err){
-      console.error(err); if(!cached){ showError("No se pudo cargar ni desde Web App ni CSV."); } return;
+    const res = await fetch(API_URL, { cache:'no-store' });
+    if(!res.ok) throw new Error('API no disponible');
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'Respuesta inválida');
+    hideError();
+    const rows = data.rows || [];
+    saveCache(rows);
+    if(!cached || (cached && cached.length !== rows.length)){
+      applyData(rows);
     }
+  }catch(e){
+    if(!cached){ showError(e.message || 'Error inesperado'); }
+    console.error(e);
   }
-  hideError(); saveCache(rows); applyData(rows);
 })();
 </script>
 </body>
