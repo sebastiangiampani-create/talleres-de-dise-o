@@ -1,1 +1,122 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Buscador Escuela ↔ Docentes</title>
 
+<style>
+  body { font-family: system-ui, sans-serif; margin: 24px; max-width: 900px; }
+  label { display:block; margin: 12px 0 4px; font-weight: 600; }
+  select, input { padding: 8px; width: 100%; max-width: 420px; }
+  table { border-collapse: collapse; margin-top: 16px; width: 100%; }
+  th, td { border: 1px solid #ddd; padding: 8px; }
+  th { text-align: left; }
+</style>
+
+<body>
+  <h1>Buscador de horarios</h1>
+
+  <label>Escuela</label>
+  <select id="escuela"></select>
+
+  <label>Docentes de (Materia/Área)</label>
+  <select id="materia"></select>
+
+  <label>Docente (opcional)</label>
+  <select id="docente"><option value="">(Cualquiera)</option></select>
+
+  <table id="tabla">
+    <thead>
+      <tr><th>Docente</th><th>Día</th><th>Horario</th><th>Comisión</th><th>Sede</th><th>Dirección</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+<script>
+const CSV_URL = "http://docs.google.com/spreadsheets/d/e/2PACX-1vRZjguLNogCNXYbZOIzTPZ9acEW_BMjtr3aept06PPTIPOvSygEh_tcyHuYi9KM6ZftIgLRaw1Aod76/pub?gid=0&single=true&output=csv"; // <- reemplazar
+
+let rows = [];
+
+async function fetchCSV(url){
+  const res = await fetch(url);
+  const text = await res.text();
+  // parseo simple CSV (sin comillas escapadas complejas)
+  return text.trim().split("\n").map(line => line.split(","));
+}
+
+function uniqueSorted(arr){ return [...new Set(arr)].filter(Boolean).sort(); }
+
+function fillSelect(el, items, withAny=false){
+  el.innerHTML = withAny ? '<option value="">(Cualquiera)</option>' : '';
+  for(const x of items){ el.innerHTML += `<option>${x}</option>`; }
+}
+
+function filterRows(escuela, materia, docente){
+  return rows.filter(r =>
+    (!escuela || r.Escuela===escuela) &&
+    (!materia || r.Materia===materia) &&
+    (!docente || r.Docente===docente)
+  );
+}
+
+function renderTable(data){
+  const tb = document.querySelector("#tabla tbody");
+  tb.innerHTML = "";
+  for(const r of data){
+    tb.innerHTML += `<tr>
+      <td>${r.Docente}</td><td>${r.Dia}</td><td>${r.Horario}</td>
+      <td>${r.Comision}</td><td>${r.Sede}</td><td>${r.Direccion}</td>
+    </tr>`;
+  }
+}
+
+function onEscuelaChange(){
+  const escuela = document.getElementById("escuela").value;
+  const materias = uniqueSorted(filterRows(escuela).map(r => r.Materia));
+  fillSelect(document.getElementById("materia"), materias);
+  onMateriaChange();
+}
+
+function onMateriaChange(){
+  const escuela = document.getElementById("escuela").value;
+  const materia = document.getElementById("materia").value;
+  const docentes = uniqueSorted(filterRows(escuela, materia).map(r => r.Docente));
+  fillSelect(document.getElementById("docente"), docentes, true);
+  onDocenteChange();
+}
+
+function onDocenteChange(){
+  const escuela = document.getElementById("escuela").value;
+  const materia = document.getElementById("materia").value;
+  const docente = document.getElementById("docente").value;
+  renderTable(filterRows(escuela, materia, docente));
+}
+
+(async function init(){
+  const data = await fetchCSV(CSV_URL);
+  const hdr = data[0].map(s => s.trim());
+  // Mapeo columnas esperadas
+  const idx = (name) => hdr.indexOf(name);
+  rows = data.slice(1).map(c => ({
+    Escuela:  c[idx("Escuela")],
+    Docente:  c[idx("Docente")],
+    Materia:  c[idx("Materia/Área")],
+    Dia:      c[idx("Día")],
+    Horario:  c[idx("Horario")],
+    Comision: c[idx("Comisión")],
+    Sede:     c[idx("Sede")],
+    Direccion:c[idx("Dirección")],
+  }));
+
+  // poblar escuela
+  const escuelas = uniqueSorted(rows.map(r => r.Escuela));
+  fillSelect(document.getElementById("escuela"), escuelas);
+  onEscuelaChange();
+
+  document.getElementById("escuela").addEventListener("change", onEscuelaChange);
+  document.getElementById("materia").addEventListener("change", onMateriaChange);
+  document.getElementById("docente").addEventListener("change", onDocenteChange);
+})();
+</script>
+</body>
+</html>
