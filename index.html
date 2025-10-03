@@ -27,6 +27,17 @@
     .badge { display:inline-block; padding:4px 8px; background:#eef; border:1px solid #dde; border-radius:999px; font-size:12px; }
     .error { color:#b00020; background:#ffebee; border:1px solid #ffcdd2; padding:10px; border-radius:12px; margin:10px 0; }
     footer { margin-top: 24px; color:#666; font-size:14px; }
+
+    /* === estilos del popup === */
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.45); display:none; place-items:center; padding: 20px; z-index: 50; }
+    .modal { background:#fff; border-radius:16px; max-width: 720px; width: 100%; border:1px solid #e5e7eb; box-shadow: 0 10px 30px rgba(0,0,0,.2); }
+    .modal header { display:flex; align-items:center; gap:10px; padding:16px 18px; border-bottom:1px solid #eee; margin:0; }
+    .modal h3 { margin:0; font-size:18px; }
+    .modal .body { padding:18px; color:#111; white-space:pre-wrap; line-height:1.4; }
+    .modal footer { display:flex; justify-content:flex-end; gap:8px; padding:16px 18px; border-top:1px solid #eee; }
+    .btn { padding:8px 12px; border:1px solid #ddd; border-radius:10px; background:#fff; cursor:pointer; }
+    .btn.primary { background: var(--brand); color:#fff; border-color: var(--brand); }
+    .btn:hover { filter: brightness(0.98); }
   </style>
 </head>
 <body>
@@ -68,11 +79,48 @@
   <footer>Fuente: Google Sheets (a través de Web App). Actualizá la planilla y recargá esta página para ver cambios.</footer>
 </main>
 
+<!-- === popup modal (agregado) === -->
+<div id="popup" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="pop-title">
+  <div class="modal">
+    <header><h3 id="pop-title">Aviso</h3></header>
+    <div class="body" id="pop-body"></div>
+    <footer>
+      <button class="btn" id="pop-dismiss">No mostrar de nuevo</button>
+      <button class="btn primary" id="pop-ok">Entendido</button>
+    </footer>
+  </div>
+</div>
+
 <script>
 // ====== CONFIG ======
 // Pegá aquí la URL de tu Web App (la que termina con /exec)
 const API_URL = "https://script.google.com/macros/s/AKfycbzuDVCz7yGO86EbIWTXiFkZLuEBKo05IqvC-77P_omJrmEV4AuhSAkM0l39xXM3u_F4tg/exec";
 
+// === bienvenida al abrir (agregado) ===
+const WELCOME_ID = "popup_welcome_dismissed_v1";
+const WELCOME_TEXT = `Seleccione su escuela y luego docentes de qué área quiere consultar y podrá visualizar en qué fecha, hora y lugar están convocados para los talleres de diseño.
+
+Todos los docentes de la formación orientada están convocados a realizar el Seminario de vinculación con el futuro, al cual se deberán inscribir de manera individual, podrán ver fechas, horarios y sede seleccionando en escuela la opción Seminario Formación Orientada
+
+Los docentes de la formación general en Cs Sociales  y los docentes de la formación orientada en Economía y Administración tienen la posibilidad de participar de la propuesta ATELIER DE APRENDIZAJES si seleccionan en escuela la opción Electivo Formación General Cs Sociales y Electivo Formacion Orientada Economía y Adminsitracion podrán ver las fechas, horarios y lugar donde se realizaran estas propuestas.`;
+
+function openPopup(message, dismissKey){
+  const el = document.getElementById('popup');
+  document.getElementById('pop-body').textContent = message;
+  el.style.display = "grid";
+  document.getElementById('pop-ok').onclick = ()=> { el.style.display="none"; };
+  document.getElementById('pop-dismiss').onclick = ()=> {
+    if (dismissKey) localStorage.setItem(dismissKey, "1");
+    el.style.display="none";
+  };
+}
+window.addEventListener("load", () => {
+  if (!localStorage.getItem(WELCOME_ID)) {
+    openPopup(WELCOME_TEXT, WELCOME_ID);
+  }
+});
+
+// ====== buscador (tu código original) ======
 function showError(msg){
   const el = document.getElementById('err');
   el.textContent = msg; el.style.display = 'block';
