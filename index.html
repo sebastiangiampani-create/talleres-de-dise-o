@@ -10,33 +10,11 @@
     * { box-sizing:border-box }
     body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Ubuntu, Arial, sans-serif; margin: 24px; display:grid; place-items:start center; background:#f9fafb; }
     main { width: 100%; max-width: 1100px; }
-
-    /* --- header prolijo --- */
-    header.topbar {
-      display: grid;
-      grid-template-columns: auto 1fr;
-      align-items: center;
-      gap: 16px;
-      margin-bottom: 8px;
-    }
-    header.topbar img.logo { height:128px; }
-    h1.title { margin:0; font-size: clamp(22px, 3vw, 28px); color: var(--brand); text-align:center; }
-
-    /* --- banner “promo” ordenado --- */
-    .card { background:#fff; border:1px solid #eee; border-radius:16px; padding:16px; box-shadow:0 1px 10px rgba(0,0,0,.04); }
-    .promo { display:block; padding:14px; margin:8px 0 16px; }
-    .promo-main {
-      display:grid; grid-template-columns:auto 1fr; gap:14px; align-items:center;
-      text-decoration:none; color:inherit;
-    }
-    .promo-main:hover .promo-line, .promo-main:focus .promo-line { text-decoration:underline; }
-    .promo-logo { height:56px; width:auto; }
-    .promo-texts { display:grid; gap:6px; }
-    .promo-line { margin:0; color:#0f172a; }
-    .promo-link { color:var(--brand); text-decoration:none; }
-    .promo-link:hover { text-decoration:underline; }
-
+    header { display:flex; align-items:center; gap:16px; margin-bottom:16px; }
+    header img.logo { height:128px; }
+    h1 { margin:0 auto; font-size: clamp(22px, 3vw, 28px); color: var(--brand); text-align:center; }
     p.hint { margin: 0 0 16px; color: #555; }
+    .card { background:#fff; border:1px solid #eee; border-radius:16px; padding:16px; box-shadow:0 1px 10px rgba(0,0,0,.04); }
 
     .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap:16px; }
     label { font-weight:600; display:block; margin-bottom:6px; }
@@ -53,7 +31,17 @@
 
     .badge { display:inline-block; padding:4px 8px; background:#eef; border:1px solid #dde; border-radius:999px; font-size:12px; }
     .error { color:#b00020; background:#ffebee; border:1px solid #ffcdd2; padding:10px; border-radius:12px; margin:10px 0; }
-    footer { margin-top: 24px; color:#666; font-size:14px; }
+
+    footer { margin-top: 24px; color:#666; font-size:14px; text-align:center; }
+
+    /* promo en el footer */
+    .promo { display:block; padding:16px; margin:16px auto; max-width:900px; }
+    .promo-main { display:grid; grid-template-columns: auto 1fr; gap:14px; align-items:center; text-decoration:none; color:inherit; }
+    .promo-logo { height:56px; width:auto; }
+    .promo-texts { display:grid; gap:6px; text-align:left; }
+    .promo-line { margin:0; color:#0f172a; }
+    .promo-link { color:var(--brand); text-decoration:none; }
+    .promo-link:hover { text-decoration:underline; }
 
     /* === estilos del popup === */
     .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.45); display:none; place-items:center; padding: 20px; z-index: 50; }
@@ -67,46 +55,26 @@
     .btn:hover { filter: brightness(0.98); }
 
     /* ====== Ajustes MOBILE ====== */
-    @media (max-width: 720px) {
-      header.topbar { grid-template-columns: 1fr; justify-items:center; }
-      header.topbar img.logo { height: 72px; }
-      .promo-main { grid-template-columns: 1fr; justify-items: center; text-align: center; }
-      .promo-logo { height: 48px; }
-    }
     @media (max-width: 600px) {
-      h1.title { font-size: 20px; }
+      body { margin: 12px; }
+      header img.logo { height: 72px; }
+      h1 { font-size: 20px; }
       select, input[type="search"], button { font-size: 16px; } /* evita zoom iOS */
       .grid { grid-template-columns: 1fr; }
       .toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
       .toolbar input, .toolbar button { width: 100%; }
       table th, table td { font-size: 14px; padding: 6px; }
+      .promo-main { grid-template-columns: 1fr; text-align:center; }
+      .promo-logo { margin: 0 auto; }
     }
-    @media (max-width: 480px) { .modal { margin: 0 10px; } }
   </style>
 </head>
 <body>
 <main>
-  <header class="topbar">
+  <header>
     <img class="logo" src="logo.png" alt="Talleres de Diseño">
-    <h1 class="title">Buscador de horarios Talleres de Diseño</h1>
+    <h1>Buscador de horarios Talleres de Diseño</h1>
   </header>
-
-  <!-- Banner prolijo con logo + textos -->
-  <section class="promo card">
-    <a class="promo-main" href="https://escuelademaestros.bue.edu.ar/capsula-secundaria-aprende/" target="_blank" rel="noopener noreferrer">
-      <img src="logo_secundaria_aprende.png" alt="Secundaria Aprende" class="promo-logo">
-      <div class="promo-texts">
-        <p class="promo-line">
-          Accede a la cápsula que te permitirá profundizar en los principales ejes que conforman <strong>Secundaria Aprende</strong>
-        </p>
-        <a class="promo-link"
-           href="https://buenosaires.gob.ar/educacion/buenos-aires-aprende/documentos-para-docentes-secundaria-aprende"
-           target="_blank" rel="noopener noreferrer">
-          Accede a todo el material de trabajo y documentos para implementar <strong>Secundaria Aprende</strong> en tu escuela.
-        </a>
-      </div>
-    </a>
-  </section>
 
   <p class="hint">Elegí la <strong>Escuela</strong> y luego el <strong>Docente</strong>. También podés buscar por texto.</p>
 
@@ -140,7 +108,25 @@
     </div>
   </section>
 
-  <footer>Fuente: Google Sheets (a través de Web App). Actualizá la planilla y recargá esta página para ver cambios.</footer>
+  <!-- Footer con promo -->
+  <footer>
+    <div class="promo card">
+      <a class="promo-main" href="https://escuelademaestros.bue.edu.ar/capsula-secundaria-aprende/" target="_blank" rel="noopener noreferrer">
+        <img src="logo_secundaria_aprende.png" alt="Secundaria Aprende" class="promo-logo">
+        <div class="promo-texts">
+          <p class="promo-line">
+            Accede a la cápsula que te permitirá profundizar en los principales ejes que conforman <strong>Secundaria Aprende</strong>
+          </p>
+          <a class="promo-link"
+             href="https://buenosaires.gob.ar/educacion/buenos-aires-aprende/documentos-para-docentes-secundaria-aprende"
+             target="_blank" rel="noopener noreferrer">
+            Accede a todo el material de trabajo y documentos para implementar <strong>Secundaria Aprende</strong> en tu escuela.
+          </a>
+        </div>
+      </a>
+    </div>
+    <p>Fuente: Google Sheets (a través de Web App). Actualizá la planilla y recargá esta página para ver cambios.</p>
+  </footer>
 </main>
 
 <!-- === popup modal === -->
@@ -178,26 +164,31 @@ function openPopup(message, dismissKey){
   };
 }
 window.addEventListener("load", () => {
-  if (!localStorage.getItem(WELCOME_ID)) openPopup(WELCOME_TEXT, WELCOME_ID);
+  if (!localStorage.getItem(WELCOME_ID)) {
+    openPopup(WELCOME_TEXT, WELCOME_ID);
+  }
 });
 
-// ====== PERFORMANCE: caché + pre-índices + DOM eficiente ======
+// ====== buscador con caché ======
 const CACHE_KEY = "buscador_rows_cache_v1";
 const CACHE_TTL_MS = 10 * 60 * 1000; // 10 min
 let ALL_ROWS = [];
 let docentesByEscuela = new Map();
 
-function showError(msg){ const el = document.getElementById('err'); el.textContent = msg; el.style.display = 'block'; }
+function showError(msg){
+  const el = document.getElementById('err');
+  el.textContent = msg; el.style.display = 'block';
+}
 function hideError(){ document.getElementById('err').style.display='none'; }
 function uniqueSorted(arr){ return [...new Set(arr.filter(Boolean))].sort((a,b)=>a.localeCompare(b)); }
 
-// Rellena <select> con placeholder si corresponde
 function fillSelect(el, items, any=false, placeholderText=""){
   const frag = document.createDocumentFragment();
   el.innerHTML = "";
   if (placeholderText){
     const p = document.createElement('option');
-    p.value = ""; p.textContent = placeholderText; p.disabled = true; p.selected = true;
+    p.value = ""; p.textContent = placeholderText;
+    p.disabled = true; p.selected = true;
     frag.appendChild(p);
   }
   if(any){ const o=document.createElement('option'); o.value=""; o.textContent="(Cualquiera)"; frag.appendChild(o); }
@@ -219,7 +210,6 @@ function docentesFor(esc){
   return uniqueSorted(Array.from(set));
 }
 
-// Debounce para el buscador
 function debounce(fn, ms){ let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), ms); }; }
 
 function renderTable(rows){
@@ -256,7 +246,6 @@ function currentFiltered(){
   );
 }
 
-// Cache helpers
 function loadCache(){
   try{
     const raw = localStorage.getItem(CACHE_KEY);
@@ -292,19 +281,18 @@ function applyData(rows){
   selEsc.onchange = onEscChange;
   selDoc.onchange = refresh;
   document.getElementById('q').addEventListener('input', debounce(refresh, 200));
-  document.getElementById('limpiar').addEventListener('click', ()=>{
+  document.getElementById('limpiar').onclick = ()=>{
     fillSelect(selEsc, escuelas, false, "(Seleccione escuela)");
     selEsc.selectedIndex = 0;
     onEscChange();
     selDoc.selectedIndex = 0;
     document.getElementById('q').value='';
     refresh();
-  });
+  };
 
   renderTable([]);
 }
 
-// Fetch con estrategia cache-first
 (async function init(){
   const cached = loadCache();
   if(cached){ hideError(); applyData(cached); }
