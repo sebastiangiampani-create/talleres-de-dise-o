@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Buscador de horarios — Guido Spano</title>
+  <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+  <style>
+    :root { --brand:#1d4ed8; --brand-600:#2563eb; }
+    * { box-sizing:border-box }
+    body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Ubuntu, Arial, sans-serif; margin: 24px; display:grid; place-items:start center; background:#f9fafb; }
+    main { width: 100%; max-width: 1100px; }
+    header { display:flex; align-items:center; gap:16px; margin-bottom:16px; }
+    header img.logo { height:64px; }
+    h1 { margin:0; font-size: clamp(22px, 3vw, 28px); color: var(--brand); }
+    p.hint { margin: 0 0 16px; color: #555; }
+    .card { background:#fff; border:1px solid #eee; border-radius:16px; padding:16px; box-shadow:0 1px 10px rgba(0,0,0,.04); }
+    .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap:16px; }
+    label { font-weight:600; display:block; margin-bottom:6px; }
+    select,input[type="search"] { padding:10px; border:1px solid #ddd; border-radius:10px; width:100%; }
+    .toolbar { display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap; }
+    button { padding: 10px 14px; border:1px solid var(--brand); background:var(--brand); color:#fff; border-radius:10px; cursor:pointer; }
+    button:hover { background:var(--brand-600) }
+    table { width:100%; border-collapse:collapse; margin-top:12px; }
+    th,td { border:1px solid #eee; padding:10px; text-align:left; vertical-align:top; }
+    th { background:#fafafa; font-weight:700; }
+    .badge { display:inline-block; padding:4px 8px; background:#eef; border:1px solid #dde; border-radius:999px; font-size:12px; }
+    .error { color:#b00020; background:#ffebee; border:1px solid #ffcdd2; padding:10px; border-radius:12px; margin:10px 0; }
+    footer { margin-top: 24px; color:#666; font-size:14px; }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <!-- Colocá tu logo.png en el mismo repo -->
+    <img class="logo" src="logo.png" alt="Institución educativa">
+    <h1>Buscador de horarios</h1>
+  </header>
+  <p class="hint">Elegí la <strong>Escuela</strong> y luego el <strong>Docente</strong>. También podés buscar por texto.</p>
+
+  <section class="card">
+    <div class="grid">
+      <div>
+        <label for="escuela">Escuela</label>
+        <select id="escuela"></select>
+      </div>
+      <div>
+        <label for="docente">Docente</label>
+        <select id="docente"><option value="">(Cualquiera)</option></select>
+      </div>
+    </div>
+    <div class="toolbar">
+      <input id="q" type="search" placeholder="Buscar en resultados (sede, comisión, dirección...)" />
+      <button id="limpiar">Limpiar filtros</button>
+      <span id="count" class="badge">0 resultados</span>
+    </div>
+    <div id="err" class="error" style="display:none"></div>
+
+    <table id="tabla" aria-live="polite">
+      <thead>
+        <tr>
+          <th>Docente</th><th>Día</th><th>Horario</th><th>Comisión</th><th>Sede</th><th>Dirección</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <footer>Fuente: Google Sheets (a través de Web App). Actualizá la planilla y recargá esta página para ver cambios.</footer>
+</main>
+
+<script>
+// ====== CONFIG ======
+// Pegá aquí la URL de tu Web App (la que termina con /exec)
+const API_URL = "PASTE_YOUR_WEB_APP_URL_HERE";
+
+function showError(msg){
+  const el = document.getElementById('err');
+  el.textContent = msg; el.style.display = 'block';
+}
+function uniqueSorted(arr){ return [...new Set(arr.filter(Boolean))].sort((a,b)=>a.localeCompare(b)); }
+function fillSelect(el, items, any=false){
+  el.innerHTML = any ? '<option value="">(Cualquiera)</option>' : '';
+  for(const x of items){ const o=document.createElement('option'); o.value=o.textContent=x; el.appendChild(o); }
+}
+function renderTable(rows){
+  const tb = document.querySelector('#tabla tbody'); tb.innerHTML = '';
+  for(const r of rows){
+    const tr=document.createElement('tr');
+    tr.innerHTML = `<td>${r.Docente||''}</td><td>${r.Dia||''}</td><td>${r.Horario||''}</td>
+                    <td>${r.Comision||''}</td><td>${r.Sede||''}</td><td>${r.Direccion||''}</td>`;
+    tb.appendChild(tr);
+  }
+  document.getElementById('count').textContent = rows.length + (rows.length===1?' resultado':' resultados');
+}
+
+(async function init(){
+  try{
+    const res = await fetch(API_URL, { cache:'no-store' }); // GET simple → sin preflight
+    if(!res.ok) throw new Error('API no disponible');
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'Respuesta inválida');
+
+    const rows = data.rows || [];
+    const selEsc = document.getElementById('escuela');
+    const selDoc = document.getElementById('docente');
+    const q = document.getElementById('q');
+
+    const escuelas = uniqueSorted(rows.map(r => r.Escuela));
+    fillSelect(selEsc, escuelas);
+    const docentesFor = esc => uniqueSorted(rows.filter(r => !esc || r.Escuela===esc).map(r => r.Docente));
+
+    function refresh(){
+      const escuela = selEsc.value, docente = selDoc.value;
+      const text = (q.value||'').toLowerCase();
+      const filtered = rows.filter(r =>
+        (!escuela || r.Escuela===escuela) &&
+        (!docente || r.Docente===docente) &&
+        (!text || Object.values(r).some(v => (v||'').toLowerCase().includes(text)))
+      );
+      renderTable(filtered);
+    }
+    function onEscChange(){ fillSelect(selDoc, docentesFor(selEsc.value), true); refresh(); }
+
+    selEsc.addEventListener('change', onEscChange);
+    selDoc.addEventListener('change', refresh);
+    q.addEventListener('input', refresh);
+    document.getElementById('limpiar').addEventListener('click', ()=>{
+      selEsc.selectedIndex=0; onEscChange(); selDoc.selectedIndex=0; q.value=''; refresh();
+    });
+
+    onEscChange();
+  }catch(e){
+    console.error(e); showError(e.message || 'Error inesperado');
+  }
+})();
+</script>
+</body>
+</html>
