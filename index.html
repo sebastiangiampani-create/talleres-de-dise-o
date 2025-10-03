@@ -21,9 +21,13 @@
     .toolbar { display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap; }
     button { padding: 10px 14px; border:1px solid var(--brand); background:var(--brand); color:#fff; border-radius:10px; cursor:pointer; }
     button:hover { background:var(--brand-600) }
-    table { width:100%; border-collapse:collapse; margin-top:12px; }
+
+    /* Tabla y contenedor */
+    .table-container { width: 100%; overflow-x: auto; }
+    table { width:100%; border-collapse:collapse; margin-top:12px; min-width: 640px; }
     th,td { border:1px solid #eee; padding:10px; text-align:left; vertical-align:top; }
     th { background:#fafafa; font-weight:700; }
+
     .badge { display:inline-block; padding:4px 8px; background:#eef; border:1px solid #dde; border-radius:999px; font-size:12px; }
     .error { color:#b00020; background:#ffebee; border:1px solid #ffcdd2; padding:10px; border-radius:12px; margin:10px 0; }
     footer { margin-top: 24px; color:#666; font-size:14px; }
@@ -38,15 +42,30 @@
     .btn { padding:8px 12px; border:1px solid #ddd; border-radius:10px; background:#fff; cursor:pointer; }
     .btn.primary { background: var(--brand); color:#fff; border-color: var(--brand); }
     .btn:hover { filter: brightness(0.98); }
+
+    /* ====== Ajustes MOBILE ====== */
+    @media (max-width: 600px) {
+      body { margin: 12px; }
+      header img.logo { height: 72px; }
+      h1 { font-size: 20px; }
+      select, input[type="search"], button { font-size: 16px; } /* evita zoom iOS */
+      .grid { grid-template-columns: 1fr; }
+      .toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
+      .toolbar input, .toolbar button { width: 100%; }
+      table th, table td { font-size: 14px; padding: 6px; }
+    }
+    @media (max-width: 480px) {
+      .modal { margin: 0 10px; }
+    }
   </style>
 </head>
 <body>
 <main>
   <header>
     <img class="logo" src="logo.png" alt="Talleres de Diseño">
-    <h1>Buscador de horarios Talleres de Diseño </h1>
+    <h1>Buscador de horarios Talleres de Diseño</h1>
   </header>
-  <p class="hint">Elegí la <strong>Escuela</strong> y luego el <strong>Docentes de </strong>. También podés buscar por texto.</p>
+  <p class="hint">Elegí la <strong>Escuela</strong> y luego el <strong>Docente</strong>. También podés buscar por texto.</p>
 
   <section class="card">
     <div class="grid">
@@ -66,20 +85,22 @@
     </div>
     <div id="err" class="error" style="display:none"></div>
 
-    <table id="tabla" aria-live="polite">
-      <thead>
-        <tr>
-          <th>Docentes de </th><th>Día</th><th>Horario</th><th>Comisión</th><th>Sede</th><th>Dirección</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
+    <div class="table-container">
+      <table id="tabla" aria-live="polite">
+        <thead>
+          <tr>
+            <th>Docente</th><th>Día</th><th>Horario</th><th>Comisión</th><th>Sede</th><th>Dirección</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
   </section>
 
   <footer>Fuente: Google Sheets (a través de Web App). Actualizá la planilla y recargá esta página para ver cambios.</footer>
 </main>
 
-<!-- === popup modal (agregado) === -->
+<!-- === popup modal === -->
 <div id="popup" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="pop-title">
   <div class="modal">
     <header><h3 id="pop-title">Aviso</h3></header>
@@ -93,10 +114,9 @@
 
 <script>
 // ====== CONFIG ======
-// Pegá aquí la URL de tu Web App (la que termina con /exec)
 const API_URL = "https://script.google.com/macros/s/AKfycbzuDVCz7yGO86EbIWTXiFkZLuEBKo05IqvC-77P_omJrmEV4AuhSAkM0l39xXM3u_F4tg/exec";
 
-// === bienvenida al abrir (agregado) ===
+// === bienvenida al abrir ===
 const WELCOME_ID = "popup_welcome_dismissed_v1";
 const WELCOME_TEXT = `Seleccione su escuela y luego docentes de qué área quiere consultar y podrá visualizar en qué fecha, hora y lugar están convocados para los talleres de diseño.
 
@@ -120,65 +140,159 @@ window.addEventListener("load", () => {
   }
 });
 
-// ====== buscador (tu código original) ======
+// ====== PERFORMANCE: caché + pre-índices + DOM eficiente ======
+const CACHE_KEY = "buscador_rows_cache_v1";
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 min
+let ALL_ROWS = [];
+let docentesByEscuela = new Map();
+
 function showError(msg){
   const el = document.getElementById('err');
   el.textContent = msg; el.style.display = 'block';
 }
+function hideError(){ document.getElementById('err').style.display='none'; }
 function uniqueSorted(arr){ return [...new Set(arr.filter(Boolean))].sort((a,b)=>a.localeCompare(b)); }
-function fillSelect(el, items, any=false){
-  el.innerHTML = any ? '<option value="">(Cualquiera)</option>' : '';
-  for(const x of items){ const o=document.createElement('option'); o.value=o.textContent=x; el.appendChild(o); }
-}
-function renderTable(rows){
-  const tb = document.querySelector('#tabla tbody'); tb.innerHTML = '';
-  for(const r of rows){
-    const tr=document.createElement('tr');
-    tr.innerHTML = `<td>${r.Docente||''}</td><td>${r.Dia||''}</td><td>${r.Horario||''}</td>
-                    <td>${r.Comision||''}</td><td>${r.Sede||''}</td><td>${r.Direccion||''}</td>`;
-    tb.appendChild(tr);
+
+// Rellena <select> con DocumentFragment (rápido) y placeholder si corresponde
+function fillSelect(el, items, any=false, placeholderText=""){
+  const frag = document.createDocumentFragment();
+  el.innerHTML = "";
+  if (placeholderText){
+    const p = document.createElement('option');
+    p.value = ""; p.textContent = placeholderText;
+    p.disabled = true; p.selected = true;
+    frag.appendChild(p);
   }
+  if(any){ const o=document.createElement('option'); o.value=""; o.textContent="(Cualquiera)"; frag.appendChild(o); }
+  for(const x of items){ const o=document.createElement('option'); o.value=x; o.textContent=x; frag.appendChild(o); }
+  el.appendChild(frag);
+}
+
+function buildIndexes(){
+  docentesByEscuela.clear();
+  for (const r of ALL_ROWS){
+    if(!r.Escuela) continue;
+    if(!docentesByEscuela.has(r.Escuela)) docentesByEscuela.set(r.Escuela, new Set());
+    if(r.Docente) docentesByEscuela.get(r.Escuela).add(r.Docente);
+  }
+}
+function docentesFor(esc){
+  if(!esc) return uniqueSorted(ALL_ROWS.map(r => r.Docente));
+  const set = docentesByEscuela.get(esc) || new Set();
+  return uniqueSorted(Array.from(set));
+}
+
+// Debounce para el buscador
+function debounce(fn, ms){ let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), ms); }; }
+
+function renderTable(rows){
+  const tb = document.querySelector('#tabla tbody');
+  const frag = document.createDocumentFragment();
+  tb.innerHTML = "";
+  for(const r of rows){
+    // Dirección: link a Google Maps si NO dice "a confirmar"
+    const dir = (r.Direccion||"").trim();
+    const isConfirmar = dir.toLowerCase().includes("confirmar");
+    const dirHtml = (!dir || isConfirmar)
+      ? (dir || "")
+      : `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(dir)}" target="_blank" rel="noopener noreferrer">${dir}</a>`;
+    const tr=document.createElement('tr');
+    tr.innerHTML = `<td>${r.Docente||''}</td>
+                    <td>${r.Dia||''}</td>
+                    <td>${r.Horario||''}</td>
+                    <td>${r.Comision||''}</td>
+                    <td>${r.Sede||''}</td>
+                    <td>${dirHtml}</td>`;
+    frag.appendChild(tr);
+  }
+  tb.appendChild(frag);
   document.getElementById('count').textContent = rows.length + (rows.length===1?' resultado':' resultados');
 }
 
-(async function init(){
+function currentFiltered(){
+  const selEsc = document.getElementById('escuela').value;
+  const selDoc = document.getElementById('docente').value;
+  const q = document.getElementById('q').value.toLowerCase();
+  return ALL_ROWS.filter(r =>
+    (!selEsc || r.Escuela===selEsc) &&
+    (!selDoc || r.Docente===selDoc) &&
+    (!q || Object.values(r).some(v => (v||'').toLowerCase().includes(q)))
+  );
+}
+
+// Cache helpers
+function loadCache(){
   try{
-    const res = await fetch(API_URL, { cache:'no-store' }); // GET simple → sin preflight
+    const raw = localStorage.getItem(CACHE_KEY);
+    if(!raw) return null;
+    const {ts, rows} = JSON.parse(raw);
+    if(!ts || !rows) return null;
+    if(Date.now() - ts > CACHE_TTL_MS) return null;
+    return rows;
+  }catch{ return null; }
+}
+function saveCache(rows){
+  try{ localStorage.setItem(CACHE_KEY, JSON.stringify({ts:Date.now(), rows})); }catch{}
+}
+
+function applyData(rows){
+  ALL_ROWS = rows;
+  buildIndexes();
+
+  const selEsc = document.getElementById('escuela');
+  const selDoc = document.getElementById('docente');
+
+  const escuelas = uniqueSorted(ALL_ROWS.map(r => r.Escuela));
+  // placeholder: "(Seleccione escuela)"
+  fillSelect(selEsc, escuelas, false, "(Seleccione escuela)");
+  // docente arranca vacío con (Cualquiera)
+  fillSelect(selDoc, [], true);
+
+  function refresh(){ renderTable(currentFiltered()); }
+  function onEscChange(){
+    const esc = selEsc.value;
+    fillSelect(selDoc, docentesFor(esc), true);
+    refresh();
+  }
+
+  selEsc.onchange = onEscChange;
+  selDoc.onchange = refresh;
+  document.getElementById('q').addEventListener('input', debounce(refresh, 200));
+  document.getElementById('limpiar').onclick = ()=>{
+    // reset: vuelve al placeholder de escuela
+    fillSelect(selEsc, escuelas, false, "(Seleccione escuela)");
+    selEsc.selectedIndex = 0;
+    onEscChange();
+    selDoc.selectedIndex = 0;
+    document.getElementById('q').value='';
+    refresh();
+  };
+
+  // estado inicial: placeholder activo, tabla vacía
+  renderTable([]);
+}
+
+// Fetch con estrategia cache-first
+(async function init(){
+  // 1) cache primero para UI instantánea
+  const cached = loadCache();
+  if(cached){ hideError(); applyData(cached); }
+
+  // 2) traer fresco y actualizar si cambia
+  try{
+    const res = await fetch(API_URL, { cache:'no-store' });
     if(!res.ok) throw new Error('API no disponible');
     const data = await res.json();
     if(!data.ok) throw new Error(data.error || 'Respuesta inválida');
-
+    hideError();
     const rows = data.rows || [];
-    const selEsc = document.getElementById('escuela');
-    const selDoc = document.getElementById('docente');
-    const q = document.getElementById('q');
-
-    const escuelas = uniqueSorted(rows.map(r => r.Escuela));
-    fillSelect(selEsc, escuelas);
-    const docentesFor = esc => uniqueSorted(rows.filter(r => !esc || r.Escuela===esc).map(r => r.Docente));
-
-    function refresh(){
-      const escuela = selEsc.value, docente = selDoc.value;
-      const text = (q.value||'').toLowerCase();
-      const filtered = rows.filter(r =>
-        (!escuela || r.Escuela===escuela) &&
-        (!docente || r.Docente===docente) &&
-        (!text || Object.values(r).some(v => (v||'').toLowerCase().includes(text)))
-      );
-      renderTable(filtered);
+    saveCache(rows);
+    if(!cached || (cached && cached.length !== rows.length)){
+      applyData(rows);
     }
-    function onEscChange(){ fillSelect(selDoc, docentesFor(selEsc.value), true); refresh(); }
-
-    selEsc.addEventListener('change', onEscChange);
-    selDoc.addEventListener('change', refresh);
-    q.addEventListener('input', refresh);
-    document.getElementById('limpiar').addEventListener('click', ()=>{
-      selEsc.selectedIndex=0; onEscChange(); selDoc.selectedIndex=0; q.value=''; refresh();
-    });
-
-    onEscChange();
   }catch(e){
-    console.error(e); showError(e.message || 'Error inesperado');
+    if(!cached){ showError(e.message || 'Error inesperado'); }
+    console.error(e);
   }
 })();
 </script>
