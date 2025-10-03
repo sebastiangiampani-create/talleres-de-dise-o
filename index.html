@@ -11,22 +11,33 @@
     body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Ubuntu, Arial, sans-serif; margin: 24px; display:grid; place-items:start center; background:#f9fafb; }
     main { width: 100%; max-width: 1100px; }
 
-    /* Header: ahora reparte a izquierda-centro-derecha y se adapta en móvil */
-    header { display:flex; align-items:center; gap:16px; margin-bottom:16px; justify-content:space-between; flex-wrap:wrap; }
-    header img.logo { height:128px; }
-    h1 { margin:0; font-size: clamp(22px, 3vw, 28px); color: var(--brand); }
+    /* --- header prolijo --- */
+    header.topbar {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 8px;
+    }
+    header.topbar img.logo { height:128px; }
+    h1.title { margin:0; font-size: clamp(22px, 3vw, 28px); color: var(--brand); text-align:center; }
 
-    /* Bloque Secundaria Aprende (derecha del título) */
-    .sec-aprende { display:flex; flex-direction:column; max-width: 360px; gap:6px; }
-    .sec-aprende-link { display:flex; align-items:center; gap:8px; text-decoration:none; color: var(--brand); }
-    .sec-aprende-link:hover .sec-aprende-text { text-decoration: underline; }
-    .logo-sec-aprende { height:48px; width:auto; flex-shrink:0; }
-    .sec-aprende-text { font-size:14px; line-height:1.3; color: var(--brand); }
-    .sec-aprende-extra { font-size:13px; color:#444; text-decoration:none; }
-    .sec-aprende-extra:hover { text-decoration:underline; color: var(--brand-600); }
+    /* --- banner “promo” ordenado --- */
+    .card { background:#fff; border:1px solid #eee; border-radius:16px; padding:16px; box-shadow:0 1px 10px rgba(0,0,0,.04); }
+    .promo { display:block; padding:14px; margin:8px 0 16px; }
+    .promo-main {
+      display:grid; grid-template-columns:auto 1fr; gap:14px; align-items:center;
+      text-decoration:none; color:inherit;
+    }
+    .promo-main:hover .promo-line, .promo-main:focus .promo-line { text-decoration:underline; }
+    .promo-logo { height:56px; width:auto; }
+    .promo-texts { display:grid; gap:6px; }
+    .promo-line { margin:0; color:#0f172a; }
+    .promo-link { color:var(--brand); text-decoration:none; }
+    .promo-link:hover { text-decoration:underline; }
 
     p.hint { margin: 0 0 16px; color: #555; }
-    .card { background:#fff; border:1px solid #eee; border-radius:16px; padding:16px; box-shadow:0 1px 10px rgba(0,0,0,.04); }
+
     .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap:16px; }
     label { font-weight:600; display:block; margin-bottom:6px; }
     select,input[type="search"] { padding:10px; border:1px solid #ddd; border-radius:10px; width:100%; }
@@ -56,42 +67,46 @@
     .btn:hover { filter: brightness(0.98); }
 
     /* ====== Ajustes MOBILE ====== */
+    @media (max-width: 720px) {
+      header.topbar { grid-template-columns: 1fr; justify-items:center; }
+      header.topbar img.logo { height: 72px; }
+      .promo-main { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+      .promo-logo { height: 48px; }
+    }
     @media (max-width: 600px) {
-      body { margin: 12px; }
-      header img.logo { height: 72px; }
-      h1 { font-size: 20px; }
-      .logo-sec-aprende { height:40px; }
+      h1.title { font-size: 20px; }
       select, input[type="search"], button { font-size: 16px; } /* evita zoom iOS */
       .grid { grid-template-columns: 1fr; }
       .toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
       .toolbar input, .toolbar button { width: 100%; }
       table th, table td { font-size: 14px; padding: 6px; }
     }
-    @media (max-width: 480px) {
-      .modal { margin: 0 10px; }
-    }
+    @media (max-width: 480px) { .modal { margin: 0 10px; } }
   </style>
 </head>
 <body>
 <main>
-  <header>
+  <header class="topbar">
     <img class="logo" src="logo.png" alt="Talleres de Diseño">
-
-    <h1>Buscador de horarios Talleres de Diseño</h1>
-
-    <!-- Bloque Secundaria Aprende (logo + 2 textos con links) -->
-    <div class="sec-aprende">
-      <a href="https://escuelademaestros.bue.edu.ar/capsula-secundaria-aprende/" target="_blank" rel="noopener noreferrer" class="sec-aprende-link">
-        <img src="logo_secundaria_aprende.png" alt="Secundaria Aprende" class="logo-sec-aprende">
-        <div class="sec-aprende-text">
-          Accede a la cápsula que te permitirá profundizar en los principales ejes que conforman <strong>Secundaria Aprende</strong>
-        </div>
-      </a>
-      <a href="https://buenosaires.gob.ar/educacion/buenos-aires-aprende/documentos-para-docentes-secundaria-aprende" target="_blank" rel="noopener noreferrer" class="sec-aprende-extra">
-        Accede a todo el material de trabajo y documentos para implementar <strong>Secundaria Aprende</strong> en tu escuela.
-      </a>
-    </div>
+    <h1 class="title">Buscador de horarios Talleres de Diseño</h1>
   </header>
+
+  <!-- Banner prolijo con logo + textos -->
+  <section class="promo card">
+    <a class="promo-main" href="https://escuelademaestros.bue.edu.ar/capsula-secundaria-aprende/" target="_blank" rel="noopener noreferrer">
+      <img src="logo_secundaria_aprende.png" alt="Secundaria Aprende" class="promo-logo">
+      <div class="promo-texts">
+        <p class="promo-line">
+          Accede a la cápsula que te permitirá profundizar en los principales ejes que conforman <strong>Secundaria Aprende</strong>
+        </p>
+        <a class="promo-link"
+           href="https://buenosaires.gob.ar/educacion/buenos-aires-aprende/documentos-para-docentes-secundaria-aprende"
+           target="_blank" rel="noopener noreferrer">
+          Accede a todo el material de trabajo y documentos para implementar <strong>Secundaria Aprende</strong> en tu escuela.
+        </a>
+      </div>
+    </a>
+  </section>
 
   <p class="hint">Elegí la <strong>Escuela</strong> y luego el <strong>Docente</strong>. También podés buscar por texto.</p>
 
@@ -163,9 +178,7 @@ function openPopup(message, dismissKey){
   };
 }
 window.addEventListener("load", () => {
-  if (!localStorage.getItem(WELCOME_ID)) {
-    openPopup(WELCOME_TEXT, WELCOME_ID);
-  }
+  if (!localStorage.getItem(WELCOME_ID)) openPopup(WELCOME_TEXT, WELCOME_ID);
 });
 
 // ====== PERFORMANCE: caché + pre-índices + DOM eficiente ======
@@ -174,21 +187,17 @@ const CACHE_TTL_MS = 10 * 60 * 1000; // 10 min
 let ALL_ROWS = [];
 let docentesByEscuela = new Map();
 
-function showError(msg){
-  const el = document.getElementById('err');
-  el.textContent = msg; el.style.display = 'block';
-}
+function showError(msg){ const el = document.getElementById('err'); el.textContent = msg; el.style.display = 'block'; }
 function hideError(){ document.getElementById('err').style.display='none'; }
 function uniqueSorted(arr){ return [...new Set(arr.filter(Boolean))].sort((a,b)=>a.localeCompare(b)); }
 
-// Rellena <select> con DocumentFragment (rápido) y placeholder si corresponde
+// Rellena <select> con placeholder si corresponde
 function fillSelect(el, items, any=false, placeholderText=""){
   const frag = document.createDocumentFragment();
   el.innerHTML = "";
   if (placeholderText){
     const p = document.createElement('option');
-    p.value = ""; p.textContent = placeholderText;
-    p.disabled = true; p.selected = true;
+    p.value = ""; p.textContent = placeholderText; p.disabled = true; p.selected = true;
     frag.appendChild(p);
   }
   if(any){ const o=document.createElement('option'); o.value=""; o.textContent="(Cualquiera)"; frag.appendChild(o); }
@@ -218,7 +227,6 @@ function renderTable(rows){
   const frag = document.createDocumentFragment();
   tb.innerHTML = "";
   for(const r of rows){
-    // Dirección: link a Google Maps si NO dice "a confirmar"
     const dir = (r.Direccion||"").trim();
     const isConfirmar = dir.toLowerCase().includes("confirmar");
     const dirHtml = (!dir || isConfirmar)
@@ -271,9 +279,7 @@ function applyData(rows){
   const selDoc = document.getElementById('docente');
 
   const escuelas = uniqueSorted(ALL_ROWS.map(r => r.Escuela));
-  // placeholder: "(Seleccione escuela)"
   fillSelect(selEsc, escuelas, false, "(Seleccione escuela)");
-  // docente arranca vacío con (Cualquiera)
   fillSelect(selDoc, [], true);
 
   function refresh(){ renderTable(currentFiltered()); }
@@ -287,7 +293,6 @@ function applyData(rows){
   selDoc.onchange = refresh;
   document.getElementById('q').addEventListener('input', debounce(refresh, 200));
   document.getElementById('limpiar').addEventListener('click', ()=>{
-    // reset: vuelve al placeholder de escuela
     fillSelect(selEsc, escuelas, false, "(Seleccione escuela)");
     selEsc.selectedIndex = 0;
     onEscChange();
@@ -296,17 +301,14 @@ function applyData(rows){
     refresh();
   });
 
-  // estado inicial: placeholder activo, tabla vacía
   renderTable([]);
 }
 
 // Fetch con estrategia cache-first
 (async function init(){
-  // 1) cache primero para UI instantánea
   const cached = loadCache();
   if(cached){ hideError(); applyData(cached); }
 
-  // 2) traer fresco y actualizar si cambia
   try{
     const res = await fetch(API_URL, { cache:'no-store' });
     if(!res.ok) throw new Error('API no disponible');
