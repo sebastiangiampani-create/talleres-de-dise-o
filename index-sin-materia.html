@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Buscador Escuela ↔ Docentes (sin Materia)</title>
+  <link rel="preconnect" href="https://unpkg.com">
+  <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+  <style>
+    :root { --maxw: 1100px; }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Arial, "Noto Sans", "Liberation Sans", sans-serif; margin: 24px; display: grid; place-items: start center; }
+    main { width: 100%; max-width: var(--maxw); }
+    h1 { margin: 0 0 12px; font-size: clamp(22px, 3vw, 28px); }
+    p.hint { margin: 0 0 16px; color: #555; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+    label { display: block; font-weight: 600; margin-bottom: 6px; }
+    select, input[type="search"] { padding: 10px; border: 1px solid #ddd; border-radius: 10px; width: 100%; }
+    .card { background: #fff; border: 1px solid #eee; border-radius: 16px; padding: 16px; box-shadow: 0 1px 10px rgba(0,0,0,.04); }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { border: 1px solid #eee; padding: 10px; text-align: left; vertical-align: top; }
+    th { background: #fafafa; font-weight: 700; }
+    .muted { color: #666; }
+    .toolbar { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+    button { padding: 10px 14px; border: 1px solid #ddd; border-radius: 10px; background: #fff; cursor: pointer; }
+    button:hover { background: #f8f8f8; }
+    .error { color: #b00020; background: #ffebee; border: 1px solid #ffcdd2; padding: 10px; border-radius: 12px; margin: 10px 0; }
+    footer { margin-top: 24px; color: #666; font-size: 14px; }
+    .badge { display: inline-block; padding: 4px 8px; background:#eef; border:1px solid #dde; border-radius: 999px; font-size: 12px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Buscador de horarios</h1>
+  <p class="hint">Elegí la <strong>Escuela</strong> y luego el <strong>Docente</strong>. También podés buscar por texto.</p>
+
+  <section class="card">
+    <div class="grid">
+      <div>
+        <label for="escuela">Escuela</label>
+        <select id="escuela"></select>
+      </div>
+      <div>
+        <label for="docente">Docente</label>
+        <select id="docente"><option value="">(Cualquiera)</option></select>
+      </div>
+    </div>
+    <div class="toolbar">
+      <input id="q" type="search" placeholder="Buscar en resultados (sede, comisión, dirección...)" />
+      <button id="limpiar">Limpiar filtros</button>
+      <span id="count" class="badge">0 resultados</span>
+    </div>
+    <div id="err" class="error" style="display:none"></div>
+    <table id="tabla" aria-live="polite">
+      <thead>
+        <tr>
+          <th>Docente</th>
+          <th>Día</th>
+          <th>Horario</th>
+          <th>Comisión</th>
+          <th>Sede</th>
+          <th>Dirección</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <footer class="muted">
+    Fuente: Google Sheets (solo lectura). Actualizá la planilla y recargá esta página para ver cambios.
+  </footer>
+</main>
+
+<script>
+// === CONFIGURACIÓN ===
+// Reemplazá por la URL pública de tu CSV (EXPORT u hoja original)
+const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRZjguLNogCNXYbZOIzTPZ9acEW_BMjtr3aept06PPTIPOvSygEh_tcyHuYi9KM6ZftIgLRaw1Aod76/pub?gid=0&single=true&output=csv";
+
+// === UTILIDADES ===
+const norm = s => (s ?? "").toString().trim();
+const normKey = s => norm(s).toLowerCase()
+  .normalize("NFD").replace(/[̀-ͯ]/g,"") // quita tildes
+  .replace(/[^a-z0-9]+/g,"");           // quita espacios/punct
+
+const headerAliases = {
+  escuela:        ["escuela","programa","esc"],
+  docente:        ["docente","profesor","profe","catedra","cátedra"],
+  dia:            ["dia","día"],
+  horario:        ["horario","hora","hs"],
+  comision:       ["comision","comisión","curso","com"],
+  sede:           ["sede","campus","edificio","lugar"],
+  direccion:      ["direccion","dirección","domicilio","calle","ubicacion","ubicación"]
+};
+
+function mapHeaders(hdr) {
+  const idx = {};
+  const normalized = hdr.map(h => normKey(h));
+  for (const [want, list] of Object.entries(headerAliases)) {
+    let found = -1;
+    for (const alias of list) {
+      const i = normalized.indexOf(alias);
+      if (i !== -1) { found = i; break; }
+    }
+    if (found === -1) {
+      // heuristic: contains keyword
+      found = normalized.findIndex(s => list.some(a => s.includes(a)));
+    }
+    idx[want] = found;
+  }
+  const required = ["escuela","docente","dia","horario","sede","direccion"]; // comisión puede faltar
+  const missing = required.filter(k => idx[k] === -1);
+  return {idx, missing};
+}
+
+function uniqueSorted(arr){ return [...new Set(arr.filter(Boolean))].sort((a,b)=>a.localeCompare(b)); }
+
+function fillSelect(el, items, withAny=false){
+  el.innerHTML = withAny ? '<option value="">(Cualquiera)</option>' : '';
+  for(const x of items){ const o = document.createElement("option"); o.value = o.textContent = x; el.appendChild(o); }
+}
+
+function renderTable(data){
+  const tb = document.querySelector("#tabla tbody");
+  tb.innerHTML = "";
+  for(const r of data){
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${r.Docente || ""}</td>
+      <td>${r.Dia || ""}</td>
+      <td>${r.Horario || ""}</td>
+      <td>${r.Comision || ""}</td>
+      <td>${r.Sede || ""}</td>
+      <td>${r.Direccion || ""}</td>`;
+    tb.appendChild(tr);
+  }
+  document.getElementById("count").textContent = data.length + (data.length === 1 ? " resultado" : " resultados");
+}
+
+function filterRows(rows, {escuela, docente, q}){
+  const qn = norm(q).toLowerCase();
+  return rows.filter(r =>
+    (!escuela || r.Escuela===escuela) &&
+    (!docente || r.Docente===docente) &&
+    (!qn || Object.values(r).some(v => (v ?? "").toString().toLowerCase().includes(qn)))
+  );
+}
+
+function showError(msg){
+  const el = document.getElementById("err");
+  el.textContent = msg;
+  el.style.display = "block";
+}
+
+(async function init(){
+  try {
+    const res = await fetch(CSV_URL, {cache: "no-store"});
+    if(!res.ok) throw new Error("No se pudo descargar el CSV público.");
+    const text = await res.text();
+
+    const parsed = Papa.parse(text, {delimiter: "", header: true, skipEmptyLines: true});
+    if(parsed.errors?.length){ console.warn(parsed.errors); }
+
+    const hdr = Object.keys(parsed.meta.fields ?? parsed.data[0] ?? {});
+    const {idx, missing} = mapHeaders(hdr);
+    if(missing.length){
+      showError("Faltan columnas obligatorias: " + missing.join(", ") + ". Verificá encabezados.");
+    }
+
+    const rows = parsed.data.map(row => ({
+      Escuela:   idx.escuela   >= 0 ? norm(row[hdr[idx.escuela]])   : "",
+      Docente:   idx.docente   >= 0 ? norm(row[hdr[idx.docente]])   : "",
+      Dia:       idx.dia       >= 0 ? norm(row[hdr[idx.dia]])       : "",
+      Horario:   idx.horario   >= 0 ? norm(row[hdr[idx.horario]])   : "",
+      Comision:  idx.comision  >= 0 ? norm(row[hdr[idx.comision]])  : "",
+      Sede:      idx.sede      >= 0 ? norm(row[hdr[idx.sede]])      : "",
+      Direccion: idx.direccion >= 0 ? norm(row[hdr[idx.direccion]]) : ""
+    }));
+
+    // Poblamos selects
+    const selEsc = document.getElementById("escuela");
+    const selDoc = document.getElementById("docente");
+
+    const escuelas = uniqueSorted(rows.map(r => r.Escuela));
+    fillSelect(selEsc, escuelas);
+    const docentesFor = (esc) => uniqueSorted(rows.filter(r => !esc || r.Escuela===esc).map(r => r.Docente));
+
+    function refresh(){
+      const escuela = selEsc.value;
+      const docente = selDoc.value;
+      const q = document.getElementById("q").value;
+      const data = filterRows(rows, {escuela, docente, q});
+      renderTable(data);
+    }
+
+    function onEscuelaChange(){
+      fillSelect(selDoc, docentesFor(selEsc.value), true);
+      refresh();
+    }
+
+    selEsc.addEventListener("change", onEscuelaChange);
+    selDoc.addEventListener("change", refresh);
+    document.getElementById("q").addEventListener("input", refresh);
+    document.getElementById("limpiar").addEventListener("click", () => {
+      selEsc.selectedIndex = 0;
+      fillSelect(selDoc, docentesFor(selEsc.value), true);
+      selDoc.selectedIndex = 0;
+      document.getElementById("q").value = "";
+      refresh();
+    });
+
+    // Inicial
+    onEscuelaChange();
+  } catch (e) {
+    console.error(e);
+    showError(e.message || "Error inesperado cargando la planilla.");
+  }
+})();
+</script>
+</body>
+</html>
