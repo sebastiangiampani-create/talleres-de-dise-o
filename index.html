@@ -20,7 +20,7 @@
 
     .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap:16px; }
     label { font-weight:600; display:block; margin-bottom:6px; }
-    select,input[type="search"] { padding:10px; border:1px solid #ddd; border-radius:10px; width:100%; }
+    select { padding:10px; border:1px solid #ddd; border-radius:10px; width:100%; }
     .toolbar { display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap; }
     button { padding: 10px 14px; border:1px solid var(--brand); background:var(--brand); color:#fff; border-radius:10px; cursor:pointer; }
     button:hover { background:var(--brand-600) }
@@ -59,10 +59,10 @@
       body { margin: 12px; }
       header img.logo { height: 72px; }
       h1 { font-size: 20px; }
-      select, input[type="search"], button { font-size: 16px; } /* evita zoom iOS */
+      select, button { font-size: 16px; } /* evita zoom iOS */
       .grid { grid-template-columns: 1fr; }
       .toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
-      .toolbar input, .toolbar button { width: 100%; }
+      .toolbar button { width: 100%; }
       table th, table td { font-size: 14px; padding: 6px; }
       .promo-logo { height:48px; }
     }
@@ -75,7 +75,7 @@
     <h1>Buscador de horarios Talleres de Diseño</h1>
   </header>
 
-  <p class="hint">Elegí la <strong>Escuela</strong> y luego el <strong>Docente</strong>. También podés buscar por texto.</p>
+  <p class="hint">Elegí la <strong>Escuela</strong> y luego el <strong>Docente</strong>.</p>
 
   <section class="card">
     <div class="grid">
@@ -89,7 +89,6 @@
       </div>
     </div>
     <div class="toolbar">
-      <input id="q" type="search" placeholder="Buscar en resultados (sede, comisión, dirección...)" />
       <button id="limpiar">Limpiar filtros</button>
       <span id="count" class="badge">0 resultados</span>
     </div>
@@ -144,33 +143,9 @@
 // ====== CONFIG ======
 const API_URL = "https://script.google.com/macros/s/AKfycbzuDVCz7yGO86EbIWTXiFkZLuEBKo05IqvC-77P_omJrmEV4AuhSAkM0l39xXM3u_F4tg/exec";
 
-// === bienvenida al abrir ===
-const WELCOME_ID = "popup_welcome_dismissed_v1";
-const WELCOME_TEXT = `Seleccione su escuela y luego docentes de qué área quiere consultar y podrá visualizar en qué fecha, hora y lugar están convocados para los talleres de diseño.
-
-Todos los docentes de la formación orientada están convocados a realizar el Seminario de vinculación con el futuro, al cual se deberán inscribir de manera individual, podrán ver fechas, horarios y sede seleccionando en escuela la opción Seminario Formación Orientada
-
-Los docentes de la formación general en Cs Sociales  y los docentes de la formación orientada en Economía y Administración tienen la posibilidad de participar de la propuesta ATELIER DE APRENDIZAJES si seleccionan en escuela la opción Electivo Formación General Cs Sociales y Electivo Formacion Orientada Economía y Adminsitracion podrán ver las fechas, horarios y lugar donde se realizaran estas propuestas.`;
-
-function openPopup(message, dismissKey){
-  const el = document.getElementById('popup');
-  document.getElementById('pop-body').textContent = message;
-  el.style.display = "grid";
-  document.getElementById('pop-ok').onclick = ()=> { el.style.display="none"; };
-  document.getElementById('pop-dismiss').onclick = ()=> {
-    if (dismissKey) localStorage.setItem(dismissKey, "1");
-    el.style.display="none";
-  };
-}
-window.addEventListener("load", () => {
-  if (!localStorage.getItem(WELCOME_ID)) {
-    openPopup(WELCOME_TEXT, WELCOME_ID);
-  }
-});
-
-// ====== PERFORMANCE: caché + pre-índices + DOM eficiente ======
+// ====== buscador sin campo de texto ======
 const CACHE_KEY = "buscador_rows_cache_v1";
-const CACHE_TTL_MS = 10 * 60 * 1000; // 10 min
+const CACHE_TTL_MS = 10 * 60 * 1000;
 let ALL_ROWS = [];
 let docentesByEscuela = new Map();
 
@@ -181,7 +156,6 @@ function showError(msg){
 function hideError(){ document.getElementById('err').style.display='none'; }
 function uniqueSorted(arr){ return [...new Set(arr.filter(Boolean))].sort((a,b)=>a.localeCompare(b)); }
 
-// Rellena <select> con DocumentFragment y placeholder
 function fillSelect(el, items, any=false, placeholderText=""){
   const frag = document.createDocumentFragment();
   el.innerHTML = "";
@@ -210,15 +184,11 @@ function docentesFor(esc){
   return uniqueSorted(Array.from(set));
 }
 
-// Debounce para el buscador
-function debounce(fn, ms){ let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), ms); }; }
-
 function renderTable(rows){
   const tb = document.querySelector('#tabla tbody');
   const frag = document.createDocumentFragment();
   tb.innerHTML = "";
   for(const r of rows){
-    // Dirección: link a Google Maps si NO dice "a confirmar"
     const dir = (r.Direccion||"").trim();
     const isConfirmar = dir.toLowerCase().includes("confirmar");
     const dirHtml = (!dir || isConfirmar)
@@ -240,15 +210,12 @@ function renderTable(rows){
 function currentFiltered(){
   const selEsc = document.getElementById('escuela').value;
   const selDoc = document.getElementById('docente').value;
-  const q = document.getElementById('q').value.toLowerCase();
   return ALL_ROWS.filter(r =>
     (!selEsc || r.Escuela===selEsc) &&
-    (!selDoc || r.Docente===selDoc) &&
-    (!q || Object.values(r).some(v => (v||'').toLowerCase().includes(q)))
+    (!selDoc || r.Docente===selDoc)
   );
 }
 
-// Cache helpers
 function loadCache(){
   try{
     const raw = localStorage.getItem(CACHE_KEY);
@@ -271,9 +238,7 @@ function applyData(rows){
   const selDoc = document.getElementById('docente');
 
   const escuelas = uniqueSorted(ALL_ROWS.map(r => r.Escuela));
-  // placeholder: "(Seleccione escuela)"
   fillSelect(selEsc, escuelas, false, "(Seleccione escuela)");
-  // docente arranca vacío con (Cualquiera)
   fillSelect(selDoc, [], true);
 
   function refresh(){ renderTable(currentFiltered()); }
@@ -285,28 +250,21 @@ function applyData(rows){
 
   selEsc.onchange = onEscChange;
   selDoc.onchange = refresh;
-  document.getElementById('q').addEventListener('input', debounce(refresh, 200));
-  document.getElementById('limpiar').addEventListener('click', ()=>{
-    // reset: vuelve al placeholder de escuela
+  document.getElementById('limpiar').onclick = ()=>{
     fillSelect(selEsc, escuelas, false, "(Seleccione escuela)");
     selEsc.selectedIndex = 0;
     onEscChange();
     selDoc.selectedIndex = 0;
-    document.getElementById('q').value='';
     refresh();
-  });
+  };
 
-  // estado inicial: placeholder activo, tabla vacía
   renderTable([]);
 }
 
-// Fetch con estrategia cache-first
 (async function init(){
-  // 1) cache primero para UI instantánea
   const cached = loadCache();
   if(cached){ hideError(); applyData(cached); }
 
-  // 2) traer fresco y actualizar si cambia
   try{
     const res = await fetch(API_URL, { cache:'no-store' });
     if(!res.ok) throw new Error('API no disponible');
